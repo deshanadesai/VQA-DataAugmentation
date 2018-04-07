@@ -3,4 +3,4 @@
 	url = https://github.com/deshanadesai/pytorch-vqa
 [submodule "cocoapi"]
 	path = cocoapi
-	url = https://github.com/cocodataset/cocoapi
+	url = https://github.com/deshanadesai/cocoapi
