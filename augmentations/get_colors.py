@@ -11,10 +11,26 @@ from matplotlib.patches import Polygon
 from matplotlib.path import Path
 from sklearn.cluster import DBSCAN
 import webcolors
+import csv
+from collections import defaultdict
 
+colors_list = defaultdict(list)
 
+def process_colors_list():
+    global colors_list
+    f = open("colors_list.csv","r")
+    reader = csv.reader(f)
+    for row in reader:
+        if row[0]=="dirty":continue
+        colors_list[row[0]] = row[1:]
+    f.close()
+    
 def gen_question(obj, supercat):
-    return ("What is the color of the " + obj + "?")
+    variations = [ ("What is the color of the " + obj + "?"),
+                  ("What color is the " + obj + "?"),
+                  ("What is the dominant color of the " + obj + "?"),
+                  ("What color most stands out in the " + obj + "?")]
+    return random.choice(variations)
 
 def gen_answer(names):     
     if len(names) == 1:
@@ -111,7 +127,7 @@ def get_colors_from_image(annoPath, imgId):
             print("Running DBSCAN..")
             Y = cluster(points_region)
             names = colour(Y)
-            answer = gen_answer(names)
+            answer = colors_list[gen_answer(names)]
         
         print("Qn. " + question)
         print("Ans. " + answer)    
@@ -123,11 +139,12 @@ def get_colors_from_image(annoPath, imgId):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
-    dataDir = '/Users/deshanadesai/Code/COCO'
+    dataDir = '/home/deshana/Code/data/mscoco'
     dataType = 'train2014'
     annFile = '{}/annotations/instances_{}.json'.format(dataDir, dataType)
     parser.add_argument("--annotation_path", help="path to annotations file", default = annFile)
     parser.add_argument("image_path", help="path to image files", type=int)
     args = parser.parse_args()
+    process_colors_list()
     colors = get_colors_from_image(args.annotation_path, args.image_path)
     
