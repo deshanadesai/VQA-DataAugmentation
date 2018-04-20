@@ -1,6 +1,7 @@
 import argparse
+import random
 import sys
-sys.path.append('cocoapi/PythonAPI')
+sys.path.append('../cocoapi/PythonAPI')
 from pycocotools.coco import COCO
 import numpy as np
 import matplotlib.pyplot as plt
@@ -25,13 +26,19 @@ def process_colors_list():
         colors_list[row[0]] = row[1:]
     f.close()
     
+# TODO : What color is the <OBJ> <POS>? (Positional)
+# TODO : Is this a multicolored <OBJ>? (Yes or No)
+# TODO : What are the <ATTR>? (Descriptive)
+# TODO : How many <OBJ> are <COL>? (Counting)
+
 def gen_question(obj, supercat):
-    variations = [ ("What is the color of the " + obj + "?"),
-                  ("What color is the " + obj + "?"),
-                  ("What is the dominant color of the " + obj + "?"),
-                  ("What color most stands out in the " + obj + "?")]
+    variations = [ ("What is the color of the " + obj + "?","None"),
+                  ("What color is the " + obj + "?","None"),
+                  ("What is the dominant color of the " + obj + "?","Dominant"),
+                  ("What color most stands out in the " + obj + "?","Dominant")]
     return random.choice(variations)
 
+# Not used.
 def gen_answer(names):     
     if len(names) == 1:
         return names[0]
@@ -95,8 +102,8 @@ def get_colors_from_image(annoPath, imgId):
     I = io.imread(img['coco_url'])
     annIds = coco.getAnnIds(imgIds=img['id'], iscrowd=None)
     anns = coco.loadAnns(annIds)
-    plt.imshow(I)
-    plt.axis('off')
+    #plt.imshow(I)
+    #plt.axis('off')
 
     (m, n, channels) = I.shape
     # make a canvas with coordinates
@@ -127,14 +134,29 @@ def get_colors_from_image(annoPath, imgId):
             print("Running DBSCAN..")
             Y = cluster(points_region)
             names = colour(Y)
-            answer = colors_list[gen_answer(names)]
+            qtype = question[1]
+            question = question[0]
+            
+            #answer = gen_answer(names)
+            
+            
+               
+            if len(names) == 1 or qtype == "Dominant":
+                answer = [colors_list[names[0]][1]]
+            elif len(names) == 2:
+                answer = [colors_list[names[0]][0] + " and " + colors_list[names[1]][0], 
+                          colors_list[names[0]][1] + " and " + colors_list[names[1]][0],
+                          colors_list[names[0]][0] + " and " + colors_list[names[1]][1],
+                          colors_list[names[0]][1] + " and " + colors_list[names[1]][1]]
+                answer = list(set(answer))
+            else: continue
         
-        print("Qn. " + question)
-        print("Ans. " + answer)    
-    coco.showAnns(anns)
-    plt.imshow(I)
-    plt.axis('off')
-    plt.show()
+        print("Qn. " , question)
+        print("Ans. " , answer)    
+    #coco.showAnns(anns)
+    #plt.imshow(I)
+    #plt.axis('off')
+    #plt.show()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
