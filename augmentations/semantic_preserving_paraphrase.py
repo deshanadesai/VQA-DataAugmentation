@@ -33,6 +33,12 @@ data = json.load(open('/Users/deshanadesai/Code/COCO/v2_OpenEnded_mscoco_train20
 f = open('store_triplets.csv','w')
 writer = csv.writer(f)
 
+
+# Can find verbs or nouns that match and cluster accordingly. Rank by number of words that are same. Or similar eg. tie instead of hat.
+# How to create standard query? Is the man wearing a plain tie? - (man, wear, cloth) Basically get
+# all root forms and reduce synonym differences and object/activity differences. 
+# You will find only two or three paraphrases in the whole dataset and that is fine.
+
 for question in data['questions'][:1000]:
     sentence = question['question']
     triplet = get_triplet(sentence)

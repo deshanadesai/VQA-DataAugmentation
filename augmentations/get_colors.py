@@ -112,6 +112,9 @@ def get_colors_from_image(annoPath, imgId):
     points = np.vstack((x, y)).T
     I_copy = I.copy()
     
+    questions = []
+    answers = []
+    
     for ann in anns:
         print ("Processing segmented area..")
         c = (np.random.random((1, 3))*0.6+0.4).tolist()[0]
@@ -152,7 +155,10 @@ def get_colors_from_image(annoPath, imgId):
             else: continue
         
         print("Qn. " , question)
-        print("Ans. " , answer)    
+        questions.append(question)
+        print("Ans. " , answer)   
+        answers.append(answer)
+    return zip(question,answer)
     #coco.showAnns(anns)
     #plt.imshow(I)
     #plt.axis('off')
