@@ -2,6 +2,7 @@
 # https://github.com/CSAILVision/places365
 # Download the following files from: http://places2.csail.mit.edu/models_places365/
 # whole_resnet18_places365_python36.pth.tar
+# whole_densenet161_places365_python36.pth.tar
 
 
 import torch
@@ -20,8 +21,9 @@ import cv2
 import skimage.io as io
 import random
 
-def load_model():# th architecture to use
-    arch = 'resnet18'
+def load_model():
+    # th architecture to use(resnet18 or densenet161)
+    arch = 'densenet161'
 
     # load the pre-trained weights
     model_file = 'whole_%s_places365_python36.pth.tar' % arch
