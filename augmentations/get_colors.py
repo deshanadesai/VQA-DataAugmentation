@@ -94,7 +94,39 @@ def colour(Y):
         names.append(closest_name)
     return names
 
-def get_colors_from_image(annoPath, imgId):
+def get_color_from_anno(annID, I):
+    ann = coco.loadAnns(annID)[0]
+    if type(ann['segmentation']) == list:
+        poly = np.array(seg).reshape((int(len(seg)/2), 2))
+        P = Path(poly)
+
+        region = points[np.where(P.contains_points(points))]
+        points_region = []
+        for r in region:
+            points_region.append(I[r[1], r[0]])
+        if len(points_region)==0:
+            continue
+        print("Running DBSCAN..")
+        Y = cluster(points_region)
+        names = colour(Y)
+    else:
+        raise 'segmentation not of type list'
+       
+    if len(names) == 1 or qtype == "Dominant":
+        answer = [colors_list[names[0]][1]]
+    elif len(names) == 2:
+        answer = [colors_list[names[0]][0] + " and " + colors_list[names[1]][0], 
+                  colors_list[names[0]][1] + " and " + colors_list[names[1]][0],
+                  colors_list[names[0]][0] + " and " + colors_list[names[1]][1],
+                  colors_list[names[0]][1] + " and " + colors_list[names[1]][1]]
+        answer = list(set(answer))
+    else: answer = []
+    
+    return answer
+    
+    
+    
+def get_color_from_image(annoPath, imgId):
     coco = COCO(annoPath)
     imgIds = coco.getImgIds(imgIds=[imgId])
     print(imgIds)
@@ -141,9 +173,7 @@ def get_colors_from_image(annoPath, imgId):
             question = question[0]
             
             #answer = gen_answer(names)
-            
-            
-               
+                           
             if len(names) == 1 or qtype == "Dominant":
                 answer = [colors_list[names[0]][1]]
             elif len(names) == 2:
@@ -163,7 +193,8 @@ def get_colors_from_image(annoPath, imgId):
     #plt.imshow(I)
     #plt.axis('off')
     #plt.show()
-
+    
+    
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
