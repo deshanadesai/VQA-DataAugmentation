@@ -83,4 +83,3 @@ class Ensemble:
         return (q, color)        
     
             
-           

@@ -6,6 +6,8 @@ sys.path.append('../cocoapi/PythonAPI')
 from pycocotools.coco import COCO
 from os import listdir
 from collections import defaultdict, Counter, OrderedDict
+from utils import helper_ans_string
+
 
 p = inflect.engine()
 
@@ -50,16 +52,15 @@ def get_counting_questions(objects):
                   'How many {} can you count?', 'How many {} are shown',
                   'How many {} are here?', 'How many {} are depicted?',
                   'How many {} are there in the scene?', 'How many {} in total?']
-    questions, answers = [], []
+    data = defaultdict(list)
     for key in objects:
         counter = Counter(map(lambda x: x['name'], filter(lambda x: x['area'] > 2000, objects[key])))
         counter = {key: counter[key] for key in counter if counter[key] > 1 or random.random() < 0.1}
         for object in counter:
             q = random.choice(variations).format(p.plural_noun(object))
-            a = str(counter[object])
-            questions.append({'image_id': key, 'question': q})
-            answers.append({'image_id': key, 'answer': p.number_to_words(a)})
-    return questions, answers
+            a = helper_ans_string([p.number_to_words(counter[object])])
+            data[key].append((q, a))
+    return data
 	        
  
 def get_obj_recognition_questions(objects):
@@ -69,7 +70,7 @@ def get_obj_recognition_questions(objects):
                   'What kind of {} is visible in the photo?', 'What kind of {} is that?',
                   'What kind of {} is in the photo?', 'What {} is shown in the image?',
                   'What {} is here?', 'What kind of {} can be seen?']
-    questions, answers = [], []
+    data = defaultdict(list)
     for key in objects:
         supcat_count = Counter(map(lambda x: x['supercategory'], 
                                filter(lambda x: 'person' not in x['name'], objects[key])))
@@ -79,10 +80,9 @@ def get_obj_recognition_questions(objects):
             if supcat_count[sc] != cat_count[(sc, c)]:
                 continue
             q = random.choice(variations).format(sc)
-            a = c
-            questions.append({'image_id': key, 'question': q})
-            answers.append({'image_id': key, 'answer': a})
-    return questions, answers
+            a = helper_ans_string([c])
+            data[key].append((q, a))
+    return data
 
 
 def get_yes_no_questions(objects, cats):
@@ -92,7 +92,7 @@ def get_yes_no_questions(objects, cats):
                   'Are there any {} in the photo?', 'Are there {} here?',
                   'Are there any {} visible?', 'Are there any {} in the image?',
                   'Are there {}?', 'Are there any {} shown here?']
-    questions, answers = [], [] 
+    data = defaultdict(list) 
     for key in objects:
         objs = set(map(lambda x: x['name'], objects[key]))
         neg_objs = list(cats - objs)
@@ -103,18 +103,16 @@ def get_yes_no_questions(objects, cats):
             if qid >= qlen/2:
                 obj = p.plural_noun(obj)
             q = variations[qid].format(obj)
-            a = "yes"
-            questions.append({'image_id': key, 'question': q})
-            answers.append({'image_id': key, 'answer': a})
+            a = helper_ans_string(["yes"])
+            data[key].append((q, a))
             qid = random.choice(range(qlen))
             neg_obj = random.choice(neg_objs)
             if qid >= qlen/2:
                 neg_obj = p.plural_noun(neg_obj)
             q = variations[qid].format(neg_obj)
-            a = "no"
-            questions.append({'image_id': key, 'question': q})
-            answers.append({'image_id': key, 'answer': a})
-    return questions, answers
+            a = helper_ans_string(["no"])
+            data[key].append((q, a))
+    return data 
 
 
 def create_graph(obj, others):
@@ -142,26 +140,30 @@ def get_positional_questions(objects, img_data):
     variations = ['What is to the {} of {}?', 'Can you tell me what is to the {} of {} in the photo?',
                   'What is to the {} of {} in the image?', 'What is to the {} of {} in the picture?']
     abs_variations = ['What is the {}most object in image?', 'What is the object in the far {} of the image?']
-    questions, answers = [], []
+    data = defaultdict(list)
     for key in objects:
 
         # absolute
         left_obj = list(filter(lambda x: x['bbox'][0] + x['bbox'][2]/2 < .25*img_data[key]['width'], objects[key]))
         if left_obj:
-            questions.append(random.choice(abs_variations).format('left'))
-            answers.append(list(map(lambda x: x['name'], left_obj)))
+            q = random.choice(abs_variations).format('left')
+            a = helper_ans_string(list(map(lambda x: x['name'], left_obj)))
+            data[key].append((q, a))
         right_obj = list(filter(lambda x: x['bbox'][0] + x['bbox'][2]/2 > .75*img_data[key]['width'], objects[key]))
         if right_obj:
-            questions.append(random.choice(abs_variations).format('right'))
-            answers.append(list(map(lambda x: x['name'], right_obj)))
+            q = random.choice(abs_variations).format('right')
+            a = helper_ans_string(list(map(lambda x: x['name'], right_obj)))
+            data[key].append((q, a))
         top_obj = list(filter(lambda x: x['bbox'][1] + x['bbox'][3]/2 < .25*img_data[key]['height'], objects[key]))
         if top_obj:
-            questions.append(random.choice(abs_variations).format('top'))
-            answers.append(list(map(lambda x: x['name'], top_obj)))
+            q = random.choice(abs_variations).format('top')
+            a = helper_ans_string(list(map(lambda x: x['name'], top_obj)))
+            data[key].append((q, a))
         bottom_obj = list(filter(lambda x: x['bbox'][1] + x['bbox'][3]/2 > .75*img_data[key]['height'], objects[key])) 
         if bottom_obj:
-            questions.append(random.choice(abs_variations).format('bottom'))
-            answers.append(list(map(lambda x: x['name'], bottom_obj)))
+            q = random.choice(abs_variations).format('bottom')
+            a = helper_ans_string(list(map(lambda x: x['name'], bottom_obj)))
+            data[key].append((q, a))
 
         # relative
         names = list(map(lambda x: x['name'], objects[key]))
@@ -175,14 +177,13 @@ def get_positional_questions(objects, img_data):
             graph = create_graph(zipped[i], zipped[:i] + zipped[i+1:])
             for dir in graph.keys():
                 q = random.choice(variations).format(dir, zipped[i][0])
-                a = graph[dir]
-                if len(set(a)) == 1 and 'person' in a:
+                a = list(set(graph[dir]))
+                if len(a) == 1 and 'person' in a:
                     q = q.replace("What", "Who")
                     q = q.replace("what", "who")
-                questions.append(q)
-                answers.append(a)
-    
-    return questions, answers
+                a = helper_ans_string(a) 
+                data[key].append((q, a))
+    return data
 
 
 if __name__ == '__main__':
@@ -194,5 +195,3 @@ if __name__ == '__main__':
 #    cats = set([cat['name'] for cat in coco.loadCats(coco.getCatIds())])
 #    ids = get_image_ids(args.image_path)
     objects, img_data= get_objects_from_image(args.annotation_path, args.image_path)
-    q, a = get_positional_questions(objects, img_data)
-    print(list(zip(q, a)))
