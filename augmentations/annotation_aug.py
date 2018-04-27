@@ -2,11 +2,12 @@ import argparse
 import sys
 import random
 import inflect
+import config
 sys.path.append('../cocoapi/PythonAPI')
 from pycocotools.coco import COCO
 from os import listdir
 from collections import defaultdict, Counter, OrderedDict
-from utils import helper_ans_string
+from utils import *
 
 
 p = inflect.engine()
@@ -61,7 +62,7 @@ def get_counting_questions(objects):
             a = helper_ans_string([p.number_to_words(counter[object])])
             data[key].append((q, a))
     return data
-	        
+
  
 def get_obj_recognition_questions(objects):
     variations = ['What {} is in the image?', 'What type of {} is this?',
@@ -191,7 +192,23 @@ if __name__ == '__main__':
     parser.add_argument("annotation_path", help="path to annotations file")
     parser.add_argument("image_path", help="path to image files")
     args = parser.parse_args()
-#    coco = COCO(args.annotation_path)
-#    cats = set([cat['name'] for cat in coco.loadCats(coco.getCatIds())])
+    coco = COCO(args.annotation_path)
+    cats = set([cat['name'] for cat in coco.loadCats(coco.getCatIds())])
 #    ids = get_image_ids(args.image_path)
     objects, img_data= get_objects_from_image(args.annotation_path, args.image_path)
+    DataLoader = data_loader(config.question_train_path, config.answer_train_path)
+    data = get_counting_questions(objects)
+    add_to_dataset(DataLoader, data)
+    print("Done... Counting Questions")
+    data = get_obj_recognition_questions(objects)
+    add_to_dataset(DataLoader, data)
+    print("Done... Obj Recog Questions")
+    data = get_yes_no_questions(objects, cats)
+    add_to_dataset(DataLoader, data)
+    print("Done... Yes/No Questions")
+    data = get_positional_questions(objects, img_data)
+    add_to_dataset(DataLoader, data)
+    print("Done... Positional Questions")
+    DataLoader.dump_ans_train_json("answers_annotations.json")
+    DataLoader.dump_qns_train_json("questions_annotations.json")
+    

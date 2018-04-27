@@ -34,7 +34,10 @@ def get_distance(word_profiles, profiles):
     return sim/counter
 
 def word_sense_profile(word, sentence, pos):
+
     synsets = get_synsets(word, pos)[:2]
+    if not synsets:
+        return None
     #f = lambda target: ' '.join(target.split('_'))
     
     # question filtered by stop words and tokenized
@@ -78,13 +81,18 @@ def pluralize(word, pos_tag_orig, target):
 def get_synonyms(word, sentence, pos_tag):
     #synsets = get_synsets(word, pos_tag)[0]  
     synsets = word_sense_profile(word, sentence, pos_tag)
-    print(synsets.lemma_names())
-    return synsets.lemma_names()
+    if synsets:
+        return synsets.lemma_names()
+    else:
+        return []
 
 def get_synonyms_without_word_sense(word, sentence, pos_tag):
-    synsets = get_synsets(word, pos_tag)[0]  
+    synsets = get_synsets(word, pos_tag)
     #synsets = word_sense_profile(word, sentence, pos_tag)
-    return synsets.lemma_names()
+    if synsets:
+        return synsets.lemma_names()
+    else:
+        return []
 
 def get_entailments(word, pos_tag):
     synsets = get_synsets(word, pos_tag)
@@ -97,8 +105,11 @@ def get_definition(syn):
     return syn.definition()
 
 def get_hypernyms(word, pos_tag):
-    synsets = get_synsets(word, pos_tag)[0]
-    return synsets.hypernyms()
+    synsets = get_synsets(word, pos_tag)
+    if synsets:
+        return synsets[0].hypernyms()
+    else:
+        return []
 
 def get_similar(syn):
     return syn.similar_tos()
@@ -117,19 +128,20 @@ def synonym_substitution(sentence):
                 if not(str.lower(str(target)) == str.lower(str(token[0]))):
                     target = ' '.join(target.split('_'))
                     questions.append(generate_ques(sentence, token[0], target))
-    print(questions)
+#     print(questions)
+    return questions
     
     
-    questions = []
-    for token in tagged:
-        if token[1].startswith('N') and token[0].lower() not in stop_words: 
-            syns = get_synonyms_without_word_sense(token[0], sentence, wordnet.NOUN)
-            for synonyms in syns:
-                target = pluralize(token[0], token[1], synonyms)
-                if not(str.lower(str(target)) == str.lower(str(token[0]))):
-                    target = ' '.join(target.split('_'))
-                    questions.append(generate_ques(sentence, token[0], target))
-    print(questions)
+#     questions = []
+#     for token in tagged:
+#         if token[1].startswith('N') and token[0].lower() not in stop_words: 
+#             syns = get_synonyms_without_word_sense(token[0], sentence, wordnet.NOUN)
+#             for synonyms in syns:
+#                 target = pluralize(token[0], token[1], synonyms)
+#                 if not(str.lower(str(target)) == str.lower(str(token[0]))):
+#                     target = ' '.join(target.split('_'))
+#                     questions.append(generate_ques(sentence, token[0], target))
+#     print(questions)
 
 def hypernym_substitution(sentence):
     tagged = pos_tag(word_tokenize(sentence))
@@ -145,7 +157,8 @@ def hypernym_substitution(sentence):
                         target = ' '.join(target.split('_'))
                         questions.append(generate_ques(sentence, token[0], target))
     #print(sentence)
-    print(questions)    
+    #print(questions)    
+    return questions
 
 def entailment_substitution(sentence):
     tagged = pos_tag(word_tokenize(sentence))
@@ -161,17 +174,27 @@ def entailment_substitution(sentence):
                         target = ' '.join(target.split('_'))
                         questions.append(generate_ques(sentence, token[0], target))
     #print(sentence)
-    print(questions)  
-    
-def substitutions(sentence):
-    print(sentence)
+    #print(questions)  
+    return questions
+
+def write_to_file(sentences, qid):
+    for s in sentences:
+        writer.writerow([qid, s])
+        
+def substitutions(sentence, qid):
+    #print(sentence)
     sentence = sentence.lower()
-    print("Entailment substitutions:")
-    entailment_substitution(sentence)
-    print("Hypernym substitutions:")
+    #print("Entailment substitutions:")
+    sentences = entailment_substitution(sentence)
+    
+    write_to_file(sentences, qid)
+    #print("Hypernym substitutions:")
     hypernym_substitution(sentence)
-    print("Synonym substitutions:")
+    write_to_file(sentences, qid)
+    
+    #print("Synonym substitutions:")
     synonym_substitution(sentence)
+    write_to_file(sentences, qid)
     
     
     
@@ -179,15 +202,30 @@ if __name__ == '__main__':
     data = json.load(open('/home/deshana/Code/data/mscoco/v2_OpenEnded_mscoco_train2014_questions.json'))
     stop_words = set(stopwords.words('english'))
 
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("index", type=int, help="path to annotations file")
-    
-    args = parser.parse_args()
-    row = data['questions'][args.index]
-    sentence = row['question']
     model=api.load("word2vec-google-news-300")
-    substitutions(sentence)
+    print("Model Loaded")
+    import csv
+    from tqdm import tqdm
+
+    f = open("sentence_substitutions.csv","w")
+    writer = csv.writer(f)
+    
+    for i in tqdm(range(len(data['questions']))):
+        row = data['questions'][i]
+        sentence = row['question']
+        qid = row['question_id']
+        substitutions(sentence, qid)
+    
+    f.close()
+    
+#     parser = argparse.ArgumentParser()
+#     parser.add_argument("index", type=int, help="path to annotations file")
+    
+#     args = parser.parse_args()
+#     row = data['questions'][args.index]
+#     sentence = row['question']
+    
+#     substitutions(sentence)
 
 '''
 tagged = pos_tag(word_tokenize(sentence))
