@@ -14,19 +14,10 @@ import pickle
 
 
 def main():
-	input_path = './test_images'
-	# For each test image, we store the filename and vector as key, value in a dictionary
-
+	
 	model = preprocess_get_model.model()
 	embeddings = {}
-	# for file in os.listdir(input_path):
-	#     filename = os.fsdecode(file)
-	#     img = str(os.path.join(input_path, filename))
-	#     p_img = preprocess_get_model.pre_processing(img)
-	#     vec = model(p_img)
-	#     size = vec.data.shape
-	#     print(size) #batch*2048*7*7
-	#     pics[filename] = vec
+	
 	dataDir='/Users/tushar/Downloads'
 	dataType='train2014'
 
@@ -39,7 +30,7 @@ def main():
 	imgIds = coco.getImgIds()
 	img = [coco.loadImgs(id)[0] for id in imgIds]
 	#idx = np.random.randint(0, len(img))
-	for i in range(0,1):
+	for i in range(0,len(img)):
 		embeddings[i] = {}
 
 		#coco_caps.showAnns(anns)
