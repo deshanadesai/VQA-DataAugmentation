@@ -14,6 +14,10 @@ from sklearn.cluster import DBSCAN
 import webcolors
 import csv
 from collections import defaultdict
+from collections import Counter
+import random
+from utils import *
+import time
 
 colors_list = defaultdict(list)
 
@@ -31,11 +35,15 @@ def process_colors_list():
 # TODO : What are the <ATTR>? (Descriptive)
 # TODO : How many <OBJ> are <COL>? (Counting)
 
+
 def gen_question(obj, supercat):
-    variations = [ ("What is the color of the " + obj + "?","None"),
-                  ("What color is the " + obj + "?","None"),
-                  ("What is the dominant color of the " + obj + "?","Dominant"),
-                  ("What color most stands out in the " + obj + "?","Dominant")]
+    endings = ["","", " in here", "", " in this scene", " in this image", " in this photo", " in this picture"]
+    end = random.choice(endings)
+               
+    variations = [ ("What is the color of the " + obj + end + "?","None"),
+                  ("What color is the " + obj + end + "?","None"),
+                  ("What is the dominant color of the " + obj + end + "?","Dominant"),
+                  ("What color most stands out in the " + obj + end + "?","Dominant")]
     return random.choice(variations)
 
 # Not used.
@@ -104,9 +112,10 @@ def get_color_from_anno(annID, I):
         points_region = []
         for r in region:
             points_region.append(I[r[1], r[0]])
-        if len(points_region)==0:
-            continue
-        print("Running DBSCAN..")
+        
+        #if len(points_region)==0:
+        #    continue
+        #print("Running DBSCAN..")
         Y = cluster(points_region)
         names = colour(Y)
     else:
@@ -124,35 +133,58 @@ def get_color_from_anno(annID, I):
     
     return answer
     
+# Filter if multiple objects are there.
+# Filter if size of object too small.
+# Filter if too many colors.
+# Limit # of Questions.
     
-    
-def get_color_from_image(annoPath, imgId):
-    coco = COCO(annoPath)
-    imgIds = coco.getImgIds(imgIds=[imgId])
-    print(imgIds)
-    img = coco.loadImgs(imgIds[np.random.randint(0, len(imgIds))])[0]
+def get_color_from_image(coco, imgId):
+    global data
+    #imgIds = coco.getImgIds(imgIds=[imgId])
+    #print(imgIds)
+    img = coco.loadImgs(imgId)[0]
     I = io.imread(img['coco_url'])
     annIds = coco.getAnnIds(imgIds=img['id'], iscrowd=None)
     anns = coco.loadAnns(annIds)
-    #plt.imshow(I)
-    #plt.axis('off')
-
+    
     (m, n, channels) = I.shape
     # make a canvas with coordinates
     x, y = np.meshgrid(np.arange(m), np.arange(n))
     x, y = x.flatten(), y.flatten()
     points = np.vstack((x, y)).T
-    I_copy = I.copy()
     
-    questions = []
-    answers = []
+    # filter annotations.
     
+    
+    filtered_ann = []
+    category_ids = []
+    blacklist_ids = []
     for ann in anns:
-        print ("Processing segmented area..")
-        c = (np.random.random((1, 3))*0.6+0.4).tolist()[0]
+        if ann['area']<=2000:
+            continue
+            
+        if ann['category_id'] in category_ids:
+            blacklist_ids.append(ann['category_id'])
+            continue
+        
+        filtered_ann.append(ann)
+        category_ids.append(ann['category_id'])
+    
+#     copy = filtered_ann
+#     for f in filtered_ann:
+#         if f['category_id'] in blacklist_ids:
+#             copy.remove(f)
+#     anns = copy
+    anns = list(filter(lambda x: x['category_id'] not in blacklist_ids, filtered_ann))
+    
+    if len(anns)>2:
+        anns = random.sample(anns, 2)
+    for ann in anns:
         cat = coco.loadCats(ann['category_id'])
         obj = cat[0]['name']
         supercat = cat[0]['supercategory']
+        area = ann['area']
+        
         question = gen_question(obj, supercat)
 
         if type(ann['segmentation']) == list:
@@ -166,16 +198,13 @@ def get_color_from_image(annoPath, imgId):
                 points_region.append(I[r[1], r[0]])
             if len(points_region)==0:
                 continue
-            print("Running DBSCAN..")
             Y = cluster(points_region)
             names = colour(Y)
             qtype = question[1]
             question = question[0]
-            
-            #answer = gen_answer(names)
-                           
+                                       
             if len(names) == 1 or qtype == "Dominant":
-                answer = [colors_list[names[0]][1]]
+                answer = [colors_list[names[0]][1], colors_list[names[0]][0]]
             elif len(names) == 2:
                 answer = [colors_list[names[0]][0] + " and " + colors_list[names[1]][0], 
                           colors_list[names[0]][1] + " and " + colors_list[names[1]][0],
@@ -184,26 +213,28 @@ def get_color_from_image(annoPath, imgId):
                 answer = list(set(answer))
             else: continue
         
-        print("Qn. " , question)
-        questions.append(question)
-        print("Ans. " , answer)   
-        answers.append(answer)
-    return zip(question,answer)
-    #coco.showAnns(anns)
-    #plt.imshow(I)
-    #plt.axis('off')
-    #plt.show()
+        q = question
+        a = helper_ans_string(answer)
+        
+        data[imgId].append((q,a))
+    
     
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-
-    dataDir = '/home/deshana/Code/data/mscoco'
+    #dataDir = '/home/deshana/Code/data/mscoco'
+    dataDir = '/Users/deshanadesai/Code/COCO'
     dataType = 'train2014'
     annFile = '{}/annotations/instances_{}.json'.format(dataDir, dataType)
     parser.add_argument("--annotation_path", help="path to annotations file", default = annFile)
     parser.add_argument("image_path", help="path to image files", type=int)
     args = parser.parse_args()
     process_colors_list()
-    colors = get_colors_from_image(args.annotation_path, args.image_path)
+    data = defaultdict(list)
+    coco = COCO(args.annotation_path)
+    start = time.time()
+    get_color_from_image(coco, args.image_path)
+    end = time.time()
+    #print(end-start)
+    #print(data)
     
