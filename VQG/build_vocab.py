@@ -51,19 +51,30 @@ def build_vocab(json, threshold):
     vocab.add_word('<end>')
     vocab.add_word('<unk>')
 
+    vocab_list = []
+    vocab_list.append('<pad>')
+    vocab_list.append('<start>')
+    vocab_list.append('<end>')
+    vocab_list.append('<unk>')
     # Adds the words to the vocabulary.
     for i, word in enumerate(words):
         vocab.add_word(word)
-    return vocab
+        vocab_list.append(word)
+    return vocab, vocab_list
 
 def main(args):
-    vocab = build_vocab(json=args.caption_path,
+    vocab, vocab_list = build_vocab(json=args.caption_path,
                         threshold=args.threshold)
     vocab_path = args.vocab_path
     with open(vocab_path, 'wb') as f:
         pickle.dump(vocab, f)
     print("Total vocabulary size: %d" %len(vocab))
     print("Saved the vocabulary wrapper to '%s'" %vocab_path)
+    import csv
+    f = open("./data/vocab_list.csv","w")
+    writer = csv.writer(f)
+    writer.writerow(vocab_list)
+    f.close()
 
 
 if __name__ == '__main__':

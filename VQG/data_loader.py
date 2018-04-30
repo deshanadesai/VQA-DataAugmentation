@@ -100,39 +100,13 @@ def collate_fn(data):
     # Merge images (from tuple of 3D tensor to 4D tensor).
     images = torch.stack(images, 0)
 
-    # Merge captions (from list of tokenized lists to 2D tensor).
-    # vocab_words = []
-    # vocab_dict = {}
-    # for cap in captions:
-    #     vocab_words = vocab_words + cap
-    # vocab_words = list(set(vocab_words))  
-    # for i in range(0,len(vocab_words)):
-    #     vocab_dict[vocab_words[i]] = i + 1 
-    # captions_converted = []
-    # for i in range(0,len(captions)):
-    #     captions_converted.append([])
-    #     for word in captions[i]:
-    #         captions_converted[i].append(vocab_dict[word])
-    # #print(len(captions_converted))
-    # print(len(captions_converted[0]))        
-    # captions_tensor = torch.LongTensor(captions_converted)
-    # lengths_c = [len(cap) for cap in captions_tensor]        
-    # targets_c = torch.zeros(len(captions_tensor), max(lengths_c)).long()
-    # for i, cap in enumerate(captions_tensor):
-    #     end = lengths_c[i]
-    #     targets_c[i, :end] = cap[:end] 
+    # Merge captions (from tuple of 1D to 2D tensor). 
     lengths_c = [len(cap) for cap in captions]
-    #cap_numpy = captions.numpy()
-    #unique_ids = np.unique(np.array(captions))
     unique_ids = []
     for cap in captions:
         unique_id = np.unique(cap.numpy())
         unique_ids = unique_ids + list(unique_id)
     unique_ids = np.unique(unique_ids)
-    # vocab_words = []
-    # for word_id in unique_ids:
-    #     word = vocab.idx2word[word_id]
-    #     vocab_words.append(word)
     targets_c = torch.zeros(len(captions), max(lengths_c)).long()    
     for i, cap in enumerate(captions):
         end = lengths_c[i]
