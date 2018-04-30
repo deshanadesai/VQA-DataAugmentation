@@ -5,7 +5,6 @@ sys.path.append('../cocoapi/PythonAPI')
 from pycocotools.coco import COCO
 import numpy as np
 import matplotlib.pyplot as plt
-import cv2
 import skimage.io as io
 from skimage import color
 from matplotlib.patches import Polygon
@@ -160,7 +159,7 @@ def get_color_from_image(coco, imgId):
     category_ids = []
     blacklist_ids = []
     for ann in anns:
-        if ann['area']<=2000:
+        if ann['area']<=2000 and ann['area']>=4000:
             continue
             
         if ann['category_id'] in category_ids:
@@ -194,8 +193,12 @@ def get_color_from_image(coco, imgId):
 
             region = points[np.where(P.contains_points(points))]
             points_region = []
-            for r in region:
-                points_region.append(I[r[1], r[0]])
+            try:
+                for r in region:
+                    points_region.append(I[r[1], r[0]])
+            except:
+                print("Exception caught at Image boundaries")
+                continue
             if len(points_region)==0:
                 continue
             Y = cluster(points_region)
@@ -212,7 +215,9 @@ def get_color_from_image(coco, imgId):
                           colors_list[names[0]][1] + " and " + colors_list[names[1]][1]]
                 answer = list(set(answer))
             else: continue
-        
+        else: 
+            print("Found Ann Mask. Skipping.") 
+            continue
         q = question
         a = helper_ans_string(answer)
         
@@ -223,18 +228,26 @@ def get_color_from_image(coco, imgId):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     #dataDir = '/home/deshana/Code/data/mscoco'
-    dataDir = '/Users/deshanadesai/Code/COCO'
+    #dataDir = '/Users/deshanadesai/Code/COCO'
+    dataDir = '/scratch/abs699'
     dataType = 'train2014'
     annFile = '{}/annotations/instances_{}.json'.format(dataDir, dataType)
     parser.add_argument("--annotation_path", help="path to annotations file", default = annFile)
-    parser.add_argument("image_path", help="path to image files", type=int)
+    parser.add_argument("image_path", help="path to image files")
     args = parser.parse_args()
     process_colors_list()
     data = defaultdict(list)
     coco = COCO(args.annotation_path)
-    start = time.time()
-    get_color_from_image(coco, args.image_path)
-    end = time.time()
-    #print(end-start)
-    #print(data)
+    ids = list(map(lambda x: int(x.strip()), open(args.image_path).readlines()))
+    from tqdm import tqdm
+    ids = random.sample(ids,len(ids)//4)
+    for imgid in tqdm(ids):
+    	get_color_from_image(coco, imgid)
     
+    #print(end-start)
+    
+    DataLoader = data_loader(config.question_train_path, config.answer_train_path)
+    add_to_dataset(DataLoader, data)
+    DataLoader.dump_qns_train_json("questions_with_color.json")
+    DataLoader.dump_ans_train_json("answers_with_color.json")
+        
