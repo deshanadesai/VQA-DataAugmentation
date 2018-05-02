@@ -44,9 +44,9 @@ class conceptNet:
                 #print(n['start']['@id'])
                 continue 
             if n['start']['label'] == word:
-                ends.append((n['end']['label'],"start"))
+                ends.append((n['end']['label'],"start",n['weight']))
             if n['end']['label'] == word:
-                ends.append((n['start']['label'],"end"))
+                ends.append((n['start']['label'],"end",n['weight']))
         #return list(set(ends))
         return ends
         
@@ -61,9 +61,9 @@ class conceptNet:
                 #print(n['start']['@id'])
                 continue            
             if n['start']['label'] == word:
-                return [(n['end']['label'],"start")]
+                return [(n['end']['label'],"start",n['weight'])]
             if n['end']['label'] == word:
-                return [(n['start']['label'],"end")]
+                return [(n['start']['label'],"end",n['weight'])]
             break
 
             
@@ -128,18 +128,20 @@ def substitutions(sentence):
     tagged = pos_tag(word_tokenize(sentence))
     questions = []
     answers = []
+    scores = []
+    qtype= []
     
     for token in tagged:
         if token[0] not in stop_words and token[0].isalpha():
             obj = c.lookup(token[0])
             
             synonyms = get_synonyms(obj,token[0])
-            hasproperty = has_property(obj,token[0])
+            #hasproperty = has_property(obj,token[0])
             entails = get_entailments(obj,token[0])
-            antonyms = antonym(obj,token[0])
-            isa = is_a_word(obj,token[0])
-            hasa = has_a(obj,token[0])
-            partof = part_of(obj,token[0])
+            #antonyms = antonym(obj,token[0])
+            #isa = is_a_word(obj,token[0])
+            #hasa = has_a(obj,token[0])
+            #partof = part_of(obj,token[0])
             madeof = made_of(obj,token[0])
             usedfor = used_for(obj,token[0])
             causes = get_causes(obj,token[0])
@@ -155,28 +157,33 @@ def substitutions(sentence):
             
             if usedfor:
                 for u_ in usedfor:
-                    (u,direction) = u_
+                    (u,direction,score) = u_
                     if not(str.lower(u) == str.lower(str(token[0]))) and u.isalpha():
                         
                         if direction=="start":
                             if token[1] == 'NNS':
                                 questions.append("What are "+token[0]+" used to do?")
                                 answers.append(u)
+                                scores.append(score)
+                                qtype.append("used_for")
                             else:
                                 questions.append("What is "+token[0]+" used to do?")
-                                answers.append(u)                                
+                                answers.append(u)    
+                                scores.append(score)
+                                qtype.append("used_for")
                         #else:
                         #    questions.append("What is used for "+token[0]+"?")
                         #    answers.append(u)
                             
             if synonyms:
                 for syn_ in synonyms:
-                    (syn, tmp) = syn_
+                    (syn, tmp, score) = syn_
                     if not(str.lower(syn) == str.lower(str(token[0]))) and syn.isalpha():
                         syn = pluralize(token[0], token[1], syn)
                         questions.append(generate_ques(sentence, token[0], syn))
                         answers.append("None")
-            
+                        scores.append(score)
+                        qtype.append("synonyms")
             
 #             if hasproperty:
 #                 for hap_ in hasproperty:
@@ -187,12 +194,14 @@ def substitutions(sentence):
                         
             if entails:
                 for ent_ in entails:
-                    (ent, direction) = ent_
+                    (ent, direction, score) = ent_
                     ent = pluralize(token[0], token[1], ent)
                     if not(str.lower(ent) == str.lower(str(token[0]))) and ent.isalpha():
                         if direction=="start":
                             questions.append(generate_ques(sentence, token[0], ent))
                             answers.append("None")
+                            scores.append(score)
+                            qtype.append("entails")
                         
 #             if isa and token[1].startswith('N'):
 #                 for is_a_ in isa:
@@ -204,12 +213,14 @@ def substitutions(sentence):
                         
             if causes:
                 for c_ in causes:
-                    (caus, direction) = c_
+                    (caus, direction, score) = c_
                     caus = pluralize(token[0], token[1], caus)
                     if not(str.lower(caus) == str.lower(str(token[0]))) and caus.isalpha():
                         if direction=="start":
                             questions.append("What is "+token[0]+" likely to cause ?")
                             answers.append(caus)
+                            scores.append(score)
+                            qtype.append("causes")
 #                         else:
 #                             questions.append("What is likely to cause a "+token[0])
 #                             answers.append(caus)
@@ -217,16 +228,18 @@ def substitutions(sentence):
 
             if madeof:
                 for m_ in madeof:
-                    (m, direction) = m_
+                    (m, direction, score) = m_
                     m = pluralize(token[0], token[1], m)
                     if not(str.lower(m) == str.lower(str(token[0]))) and m.isalpha():
                         if direction=="start":
                             questions.append("What is "+token[0]+" likely to be made of?")
                             answers.append(m)
+                            scores.append(score)
+                            qtype.append("made_of")
                         
     if questions!=[]:
         for i in range(len(questions)):
-            writer.writerow([sentence,questions[i],answers[i]])
+            writer.writerow([sentence,questions[i],answers[i], scores[i], qtype[i]])
 #     print(sentence)
 #     print(questions)
 #     print(answers)
@@ -249,8 +262,19 @@ if __name__ == '__main__':
 #     substitutions(row['question'])
     
 
-    f = open("conceptnet.csv","w")
+    #f = open("conceptnet.csv","r")
+    #reader = csv.reader(f)
+    #qns = []
+    #for row in reader:
+    #    qns.append(row[0])
+    #f.close()
+
+    f = open("conceptnet.csv","a")
     writer = csv.writer(f)
     for row in tqdm(data['questions']):
-        substitutions(row['question'])
+        if row in qns: continue
+        try:
+            substitutions(row['question'])
+        except:
+            print("Encountered an error. Skipping Question")
     f.close()
