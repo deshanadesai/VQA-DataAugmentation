@@ -20,13 +20,15 @@ class VQG_Dataset(data.Dataset):
         
         Args:
             root: image directory.
-            json: coco annotation file path.
+            json: img embeddings file path.
             data: preprocessed csv dataset file path
+            ignore_ids: txt file path for which there are no embeddings
             vocab: vocabulary wrapper.
             transform: image transformer.
         """
         self.root = root
-        self.coco = COCO(json)
+        #self.coco = COCO(json)
+        self.embeddings_path = json
         self.data = pd.read_csv(data, names = ['image_id','q_id','question','answer','caption'])
         self.ids = self.data.index.values
         self.vocab = vocab
@@ -35,19 +37,23 @@ class VQG_Dataset(data.Dataset):
         
     def __getitem__(self, index):
         """Returns one data triplet (image, caption, QA)."""
-        coco = self.coco
+        #coco = self.coco
         vocab = self.vocab
         dataset = self.data
         im_id = dataset['image_id'][index]
-        path = coco.loadImgs(int(im_id))[0]['file_name']
+        #path = coco.loadImgs(int(im_id))[0]['file_name']
+        im_path = self.embeddings_path + "img_tensor_%06d.pt"%int(im_id)
         caption = dataset['caption'][index]
         question = dataset['question'][index]
         answer = dataset['answer'][index]
 
-        image = Image.open(os.path.join(self.root, path)).convert('RGB')
-        if self.transform is not None:
-            image = self.transform(image)
-
+        #image = Image.open(os.path.join(self.root, path)).convert('RGB')
+        #if self.transform is not None:
+        #    image = self.transform(image)
+       # if torch.cuda.is_available():
+       #     image = torch.load(im_path)
+       # else:
+        image = torch.load(im_path,map_location=lambda storage, location: storage)
         # Convert caption (string) to word ids.
         tokens = nltk.tokenize.word_tokenize(str(caption).lower())
         caption = []
@@ -100,13 +106,39 @@ def collate_fn(data):
     # Merge images (from tuple of 3D tensor to 4D tensor).
     images = torch.stack(images, 0)
 
-    # Merge captions (from tuple of 1D to 2D tensor). 
+    # Merge captions (from list of tokenized lists to 2D tensor).
+    # vocab_words = []
+    # vocab_dict = {}
+    # for cap in captions:
+    #     vocab_words = vocab_words + cap
+    # vocab_words = list(set(vocab_words))  
+    # for i in range(0,len(vocab_words)):
+    #     vocab_dict[vocab_words[i]] = i + 1 
+    # captions_converted = []
+    # for i in range(0,len(captions)):
+    #     captions_converted.append([])
+    #     for word in captions[i]:
+    #         captions_converted[i].append(vocab_dict[word])
+    # #print(len(captions_converted))
+    # print(len(captions_converted[0]))        
+    # captions_tensor = torch.LongTensor(captions_converted)
+    # lengths_c = [len(cap) for cap in captions_tensor]        
+    # targets_c = torch.zeros(len(captions_tensor), max(lengths_c)).long()
+    # for i, cap in enumerate(captions_tensor):
+    #     end = lengths_c[i]
+    #     targets_c[i, :end] = cap[:end] 
     lengths_c = [len(cap) for cap in captions]
+    #cap_numpy = captions.numpy()
+    #unique_ids = np.unique(np.array(captions))
     unique_ids = []
     for cap in captions:
         unique_id = np.unique(cap.numpy())
         unique_ids = unique_ids + list(unique_id)
     unique_ids = np.unique(unique_ids)
+    # vocab_words = []
+    # for word_id in unique_ids:
+    #     word = vocab.idx2word[word_id]
+    #     vocab_words.append(word)
     targets_c = torch.zeros(len(captions), max(lengths_c)).long()    
     for i, cap in enumerate(captions):
         end = lengths_c[i]
