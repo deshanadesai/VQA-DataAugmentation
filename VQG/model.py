@@ -5,6 +5,12 @@ from torch.nn.utils.rnn import pack_padded_sequence
 from torch.autograd import Variable
 
 
+def to_var(x, volatile=False):
+    if torch.cuda.is_available():
+        x = x.cuda()
+    return Variable(x, volatile=volatile)
+
+
 #Attention model:
 class T_Att(nn.Module):
     def __init__(self):
@@ -15,25 +21,26 @@ class T_Att(nn.Module):
         self.cap_size=2400
         self.lin1ann=nn.Linear(self.ann_size,self.emb_size)
         self.lin1cap=nn.Linear(self.cap_size,self.emb_size,bias=False)
-        self.tanhl=nn.Tanh()
+        self.relu=nn.ReLU()
         self.lin2=nn.Linear(self.emb_size,1)
         self.softm=nn.Softmax()
 
     def forward(self, img_enco_vec,cap_enco_vec):
         s = img_enco_vec.size() 
         n_batch = s[0] # (nbatch,ann_size,k,k) so the input from encoding model should be [2048,7,7]
-        imgenco_vec = img_enco_vec.view(1,s[0] * s[2] * s[2], s[1])  # (1->for saying that the entire batch is one now *fixed value, nbatch*kk,ann_size) kk=k*k
-        imgenco_var = Variable(imgenco_vec)
+        #imgenco_vec = img_enco_vec.view(1,s[0] * s[2] * s[2], s[1])  # (1->for saying that the entire batch is one now *fixed value, nbatch*kk,ann_size) kk=k*k
+        imgenco_vec = img_enco_vec.view(1,s[0] * s[3] * s[3], s[2])
+        imgenco_var = to_var(imgenco_vec)
         imgvec1=self.lin1ann(imgenco_var) #1*(nbatch*kk,emb_size)
         s2=cap_enco_vec.size()
         #(nbatch,cap_size)  so cap_size input from encoding model should be [2400]
         cap_enco_vec=cap_enco_vec.view(1,s2[0],s2[1])
-        cap_enco_var=Variable(cap_enco_vec)
+        cap_enco_var=to_var(cap_enco_vec)
         capvec1=self.lin1cap(cap_enco_var)
         capvec1=capvec1.unsqueeze(2).repeat(1,1,self.kk,1).view(1,-1,self.emb_size) #unsqueeze 2 means rowwise, ends with 1*(nbatch*kk,emb_size)
         vecvar=imgvec1+capvec1 #1*(nbatch*kk,emb_size)
         #vecvar=Variable(vec)
-        tanhvar=self.tanhl(vecvar)#1*(nbatch*kk,emb_size)
+        tanhvar=self.relu(vecvar)#1*(nbatch*kk,emb_size)
         #tanhvar=Variable(tanhvec)
         attvar=self.lin2(tanhvar) #1*(nbatch * kk, 1)
         attvar=attvar.view(1,n_batch,self.kk) #1*(nbatch,kk)
@@ -51,13 +58,13 @@ class T_Att(nn.Module):
 
 #Decoder to generate QA pair:    
 class DecoderRNN(nn.Module):
-    def __init__(self, embed_size, hidden_size, vocab_size, num_layers):
+    def __init__(self, embed_size, hidden_size, vocab_size, num_layers, dropout):
         """Set the hyper-parameters and build the layers."""
         super(DecoderRNN, self).__init__()
         self.hidden_size = hidden_size
         self.ctx_embed = nn.Linear(2048,embed_size)
         self.embed = nn.Embedding(vocab_size, embed_size)
-        self.lstm = nn.LSTM(embed_size, hidden_size, num_layers, batch_first=True)
+        self.lstm = nn.LSTM(embed_size, hidden_size, num_layers, batch_first=True, dropout=dropout)
         self.linear = nn.Linear(hidden_size, vocab_size)
         self.init_weights()
     
@@ -88,7 +95,7 @@ class DecoderRNN(nn.Module):
         return outputs
 
     def sample(self, ctx_vec, states = None):
-        """Samples qa for given context vector. To be used during test/val"""
+        """Samples qa for given context vector."""
         sampled_ids = []
         #embeddings = self.embed(qa)
         ctx_var = Variable(ctx_vec)
@@ -102,6 +109,7 @@ class DecoderRNN(nn.Module):
             inputs = self.embed(predicted)
             inputs = inputs.unsqueeze(1)  
 
-        sampled_ids = torch.cat(sampled_ids, 0)      
+        sampled_ids = torch.cat(sampled_ids, 0)
+        #print(sampled_ids.size())       
         return sampled_ids.squeeze()    
     
