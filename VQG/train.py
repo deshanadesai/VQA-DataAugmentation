@@ -76,6 +76,9 @@ def main(args):
     for epoch in range(args.num_epochs):
         for i, (images, captions, cap_lengths, qa, qa_lengths, vocab_words) in enumerate(tqdm(data_loader)):
             
+            #Re-initialize decoder hidden state
+            decoder.hidden = decoder.init_hidden()
+
             # Set mini-batch dataset
             img_embeddings = to_var(images.data, volatile=True)
             captions = to_var(captions)
@@ -127,7 +130,7 @@ def main(args):
            
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model_path', type=str, default='./models_20e_dropout/' ,
+    parser.add_argument('--model_path', type=str, default='./models_20e_hidden/' ,
                         help='path for saving trained models')
     parser.add_argument('--crop_size', type=int, default=224 ,
                         help='size for randomly cropping images')
@@ -160,7 +163,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_epochs', type=int, default=20)
     parser.add_argument('--batch_size', type=int, default=128)
     parser.add_argument('--num_workers', type=int, default=4)
-    parser.add_argument('--learning_rate', type=float, default=0.0004)
+    parser.add_argument('--learning_rate', type=float, default=0.0001)
     parser.add_argument('--dropout', type=float, default=0.5)
     args = parser.parse_args()
     print(args)

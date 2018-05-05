@@ -67,7 +67,8 @@ class DecoderRNN(nn.Module):
         self.lstm = nn.LSTM(embed_size, hidden_size, num_layers, batch_first=True, dropout=dropout)
         self.linear = nn.Linear(hidden_size, vocab_size)
         self.init_weights()
-    
+        self.hidden = self.init_hidden()
+ 
     def init_weights(self):
         """Initialize weights."""
         self.ctx_embed.weight.data.uniform_(-0.1,0.1)
@@ -78,8 +79,8 @@ class DecoderRNN(nn.Module):
 
     def init_hidden(self):
         """Initialize hidden state"""
-        return (torch.zeros(1, 1, self.hidden_size),
-                torch.zeros(1, 1, self.hidden_size))
+        return (Variable(torch.zeros(1, 128, self.hidden_size)),
+                Variable(torch.zeros(1, 128, self.hidden_size)))
      
         
     def forward(self, ctx_vec, qa, lengths):
@@ -87,10 +88,11 @@ class DecoderRNN(nn.Module):
         embeddings = self.embed(qa)
         ctx_var = Variable(ctx_vec)
         ctx_embeddings = self.ctx_embed(ctx_var)
+        self.hidden = (self.hidden[0].cuda(), self.hidden[1].cuda())
         embeddings = torch.cat((ctx_embeddings.unsqueeze(1), embeddings), 1)
         packed = pack_padded_sequence(embeddings, lengths, batch_first=True) 
-        hiddens, _ = self.lstm(packed)
-        outputs = self.linear(hiddens[0])
+        lstm_out, self.hidden = self.lstm(packed,self.hidden)
+        outputs = self.linear(lstm_out[0])
         #output_scores = softmax(outputs, dim=1)
         return outputs
 
@@ -101,9 +103,10 @@ class DecoderRNN(nn.Module):
         ctx_var = Variable(ctx_vec)
         ctx_embeddings = self.ctx_embed(ctx_var)
         inputs = ctx_embeddings.unsqueeze(1)
+        self.hidden = (self.hidden[0].cuda(), self.hidden[1].cuda())
         for i in range(32): #max qa len with tags
-            hiddens, states = self.lstm(inputs, states)          # (batch_size, 1, hidden_size), 
-            outputs = self.linear(hiddens.squeeze(1))            # (batch_size, vocab_size)
+            lstm_out, self.hidden = self.lstm(inputs, self.hidden)          # (batch_size, 1, hidden_size), 
+            outputs = self.linear(lstm_out.squeeze(1))            # (batch_size, vocab_size)
             predicted = outputs.max(1)[1]
             sampled_ids.append(predicted)
             inputs = self.embed(predicted)
