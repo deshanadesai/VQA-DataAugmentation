@@ -176,5 +176,6 @@ def get_loader(root, json, data, vocab, transform, batch_size, shuffle, num_work
                                               batch_size=batch_size,
                                               shuffle=shuffle,
                                               num_workers=num_workers,
-                                              collate_fn=collate_fn)
+                                              collate_fn=collate_fn
+                                              drop_last=True)
     return data_loader
