@@ -11,6 +11,12 @@ Evaluation: https://github.com/GT-Vision-Lab/VQA
 Experiments To Do:
 
 * Add converse substitution to Language Only augmentation 
+* Multiple word substitutions.
+* How many <OBJ> / Color of <OBJ> - question substitution with hypernym doubt.
+* Language augment other methods.
 * Change all augmentation methods to fit the same vocab.
 * Filter conceptnet based on question repetition.
 * Add all working methods together for data augmentation.
+* Make custom test set for places 365? Places 365 has adjectives as well as scene understanding.
+* Add augmentation on image based on wrong answer or image type?
+  
