@@ -10,8 +10,12 @@ Evaluation: https://github.com/GT-Vision-Lab/VQA
 
 Experiments To Do:
 
+To run today:
+
 * Add converse substitution to Language Only augmentation 
 * Multiple word substitutions.
+* Do some paraphrasing for known question types.
+
 * How many <OBJ> / Color of <OBJ> - question substitution with hypernym doubt.
 * Language augment other methods.
 * Change all augmentation methods to fit the same vocab.
