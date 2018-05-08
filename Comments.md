@@ -10,7 +10,7 @@ Evaluation: https://github.com/GT-Vision-Lab/VQA
 
 Experiments To Do:
 
-[1] Add converse substitution to Language Only augmentation
-[2] Change all augmentation methods to fit the same vocab.
-[3] Filter conceptnet based on question repetition.
-[4] Add all working methods together for data augmentation.
+* Add converse substitution to Language Only augmentation 
+* Change all augmentation methods to fit the same vocab.
+* Filter conceptnet based on question repetition.
+* Add all working methods together for data augmentation.
