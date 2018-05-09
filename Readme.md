@@ -1,4 +1,4 @@
-### Please insert comments here.
+### VQA Data Augmentation
 
 Baseline: Show, Ask, Attend, and Answer: A Strong Baseline For Visual Question Answering 
 (paper: https://arxiv.org/pdf/1704.03162.pdf) 
